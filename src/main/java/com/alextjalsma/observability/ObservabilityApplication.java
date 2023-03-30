@@ -7,10 +7,12 @@ import org.springframework.context.ApplicationListener;
 import org.springframework.context.annotation.Bean;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowMapper;
+import org.springframework.stereotype.Controller;
 import org.springframework.stereotype.Service;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.ResponseBody;
 
-import java.sql.ResultSet;
-import java.sql.SQLException;
 import java.util.Collection;
 
 @SpringBootApplication
@@ -23,6 +25,32 @@ public class ObservabilityApplication {
     @Bean
     ApplicationListener<ApplicationReadyEvent> readyEventApplicationListener(CustomerService cs) {
         return event -> cs.all().forEach(System.out::println);
+    }
+}
+
+@Controller
+@ResponseBody
+class CustomerHttpController {
+
+    private final CustomerService customerService;
+
+    CustomerHttpController(CustomerService customerService) {
+        this.customerService = customerService;
+    }
+
+    @GetMapping("/customers")
+    Collection<Customer> all(){
+        return this.customerService.all();
+    }
+
+    @GetMapping("/customer/{id}")
+    Customer byId(@PathVariable Integer id){
+        return this.customerService.byId(id);
+    }
+
+    @GetMapping("/customer/name/{name}")
+    Customer byName(@PathVariable String name){
+        return this.customerService.byName(name);
     }
 }
 
@@ -43,7 +71,12 @@ class CustomerService {
 				this.customerRowMapper, id);
 	}
 
-	Collection<Customer> all() {
+    Customer byName(String name) {
+        return this.template.queryForObject("select * from customer where name=?",
+                this.customerRowMapper, name);
+    }
+
+    Collection<Customer> all() {
 		return this.template.query("select * from customer", this.customerRowMapper);
 	}
 
