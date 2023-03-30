@@ -5,13 +5,14 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
 import org.springframework.context.ApplicationListener;
 import org.springframework.context.annotation.Bean;
+import org.springframework.http.HttpStatusCode;
+import org.springframework.http.ProblemDetail;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowMapper;
 import org.springframework.stereotype.Controller;
 import org.springframework.stereotype.Service;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.ResponseBody;
+import org.springframework.util.Assert;
+import org.springframework.web.bind.annotation.*;
 
 import java.util.Collection;
 
@@ -50,7 +51,19 @@ class CustomerHttpController {
 
     @GetMapping("/customer/name/{name}")
     Customer byName(@PathVariable String name){
+        Assert.state(Character.isUpperCase(name.charAt(0)),"The name must start with a capitool letter");
         return this.customerService.byName(name);
+    }
+}
+
+@ControllerAdvice
+class ErrorHandlingControllerAdvice {
+
+    @ExceptionHandler
+    ProblemDetail handleIllegalStateException(IllegalAccessException illegalAccessException){
+        var pd = ProblemDetail.forStatus(HttpStatusCode.valueOf(404));
+        pd.setDetail("The name must start with a capitool letter");
+        return pd;
     }
 }
 
