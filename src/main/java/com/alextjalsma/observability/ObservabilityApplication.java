@@ -60,7 +60,7 @@ class CustomerHttpController {
 class ErrorHandlingControllerAdvice {
 
     @ExceptionHandler
-    ProblemDetail handleIllegalStateException(IllegalAccessException illegalAccessException){
+    ProblemDetail handleIllegalStateException(IllegalStateException illegalStateException){
         var pd = ProblemDetail.forStatus(HttpStatusCode.valueOf(404));
         pd.setDetail("The name must start with a capitool letter");
         return pd;
