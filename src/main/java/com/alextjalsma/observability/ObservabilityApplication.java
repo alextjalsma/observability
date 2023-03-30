@@ -1,5 +1,7 @@
 package com.alextjalsma.observability;
 
+import io.micrometer.observation.Observation;
+import io.micrometer.observation.ObservationRegistry;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
@@ -15,6 +17,7 @@ import org.springframework.util.Assert;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.Collection;
+import java.util.function.Supplier;
 
 @SpringBootApplication
 public class ObservabilityApplication {
@@ -34,25 +37,29 @@ public class ObservabilityApplication {
 class CustomerHttpController {
 
     private final CustomerService customerService;
+    private final ObservationRegistry observationRegistry;
 
-    CustomerHttpController(CustomerService customerService) {
+    CustomerHttpController(CustomerService customerService, ObservationRegistry observationRegistry) {
         this.customerService = customerService;
+        this.observationRegistry = observationRegistry;
     }
 
     @GetMapping("/customers")
-    Collection<Customer> all(){
+    Collection<Customer> all() {
         return this.customerService.all();
     }
 
     @GetMapping("/customer/{id}")
-    Customer byId(@PathVariable Integer id){
+    Customer byId(@PathVariable Integer id) {
         return this.customerService.byId(id);
     }
 
     @GetMapping("/customer/name/{name}")
-    Customer byName(@PathVariable String name){
-        Assert.state(Character.isUpperCase(name.charAt(0)),"The name must start with a capitool letter");
-        return this.customerService.byName(name);
+    Customer byName(@PathVariable String name) {
+        Assert.state(Character.isUpperCase(name.charAt(0)), "The name must start with a capitool letter");
+        return Observation
+                .createNotStarted("byName", this.observationRegistry)
+                .observe(() -> customerService.byName(name));
     }
 }
 
@@ -60,7 +67,7 @@ class CustomerHttpController {
 class ErrorHandlingControllerAdvice {
 
     @ExceptionHandler
-    ProblemDetail handleIllegalStateException(IllegalStateException illegalStateException){
+    ProblemDetail handleIllegalStateException(IllegalStateException illegalStateException) {
         var pd = ProblemDetail.forStatus(HttpStatusCode.valueOf(404));
         pd.setDetail("The name must start with a capitool letter");
         return pd;
@@ -73,16 +80,16 @@ class CustomerService {
     private final JdbcTemplate template;
 
     private final RowMapper<Customer> customerRowMapper =
-			(rs, rowNum) -> new Customer(rs.getInt("id"), rs.getString("name"));
+            (rs, rowNum) -> new Customer(rs.getInt("id"), rs.getString("name"));
 
     public CustomerService(JdbcTemplate template) {
         this.template = template;
     }
 
-	Customer byId(Integer id) {
-		return this.template.queryForObject("select * from customer where id=?",
-				this.customerRowMapper, id);
-	}
+    Customer byId(Integer id) {
+        return this.template.queryForObject("select * from customer where id=?",
+                this.customerRowMapper, id);
+    }
 
     Customer byName(String name) {
         return this.template.queryForObject("select * from customer where name=?",
@@ -90,8 +97,8 @@ class CustomerService {
     }
 
     Collection<Customer> all() {
-		return this.template.query("select * from customer", this.customerRowMapper);
-	}
+        return this.template.query("select * from customer", this.customerRowMapper);
+    }
 
 
 }
